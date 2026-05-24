@@ -1,0 +1,13 @@
+<svg width="320" height="56" viewBox="0 0 320 56" xmlns="http://www.w3.org/2000/svg">
+  <!-- Lattice screen mark -->
+  <rect x="0" y="2" width="52" height="52" rx="8" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <line x1="13"  y1="2"  x2="13"  y2="54" stroke="#FFFFFF" stroke-width="2"/>
+  <line x1="26"  y1="2"  x2="26"  y2="54" stroke="#FFFFFF" stroke-width="2"/>
+  <line x1="39"  y1="2"  x2="39"  y2="54" stroke="#FFFFFF" stroke-width="2"/>
+  <line x1="0"   y1="15" x2="52"  y2="15" stroke="#FFFFFF" stroke-width="2"/>
+  <line x1="0"   y1="28" x2="52"  y2="28" stroke="#FFFFFF" stroke-width="2"/>
+  <line x1="0"   y1="41" x2="52"  y2="41" stroke="#FFFFFF" stroke-width="2"/>
+  <!-- Wordmark -->
+  <text x="68" y="38" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="400" font-style="italic" fill="#FFFFFF" letter-spacing="-0.3">The</text>
+  <text x="118" y="38" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="700" fill="#FFFFFF" letter-spacing="-0.5">Confessional</text>
+</svg>
