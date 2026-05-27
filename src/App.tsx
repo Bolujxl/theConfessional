@@ -1,18 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { stripHtml } from './lib/stripHtml';
+import { useRelativeTime } from './hooks/useRelativeTime';
+import ConfessionCard from './components/ConfessionCard';
+import type { Confession } from './types';
 
-/** Utility for Tailwind class merging */
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-interface Confession {
-  id: string;
-  text: string;
-  createdAt: number;
-}
+const CHAR_LIMIT = 280;
 
 const SEED_DATA: Confession[] = [
   {
@@ -22,36 +21,30 @@ const SEED_DATA: Confession[] = [
   },
 ];
 
-function formatTimestamp(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const mins = Math.floor(diff / (1000 * 60));
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} mins ago`;
-  return `${hours} ${hours === 1 ? 'hr' : 'hrs'} ago`;
-}
-
 export default function App() {
   const [confessions, setConfessions] = useState<Confession[]>(SEED_DATA);
   const [inputText, setInputText] = useState('');
+  const [showSkipLink, setShowSkipLink] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const now = useRelativeTime();
 
   const charCount = inputText.length;
-  const limit = 280;
 
   const handleSubmit = () => {
     const trimmedText = inputText.trim();
     if (!trimmedText) return;
 
+    const sanitizedText = stripHtml(trimmedText);
+
     const newConfession: Confession = {
       id: crypto.randomUUID(),
-      text: trimmedText,
+      text: sanitizedText,
       createdAt: Date.now(),
     };
 
     setConfessions([newConfession, ...confessions]);
     setInputText('');
+    setShowSkipLink(true);
     textareaRef.current?.focus();
   };
 
@@ -60,7 +53,7 @@ export default function App() {
       {/* Header */}
       <header className="mt-12 flex flex-col items-center text-center">
         <img src="/icon.svg" alt="Logo" className="w-9 h-9 opacity-40" />
-        <h1 className="mt-4 text-[16px] font-normal tracking-[0.12em] text-white/40 playfair uppercase">
+        <h1 className="mt-4 text-[16px] font-normal tracking-[0.12em] text-white/40 font-serif uppercase">
           The Confessional
         </h1>
       </header>
@@ -70,25 +63,35 @@ export default function App() {
 
         {/* Form */}
         <section className="flex flex-col">
+          <label htmlFor="confession-textarea" className="sr-only">
+            Write your anonymous confession
+          </label>
           <textarea
+            id="confession-textarea"
             ref={textareaRef}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            maxLength={limit}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            maxLength={CHAR_LIMIT}
             placeholder="say it here. no one will know."
             className={cn(
               "w-full min-h-[140px] bg-surface border border-white/10 rounded-xl p-5",
-              "playfair text-[17px] leading-[1.7] text-white placeholder:text-white/20",
+              "font-serif text-[17px] leading-[1.7] text-white placeholder:text-subtle",
               "focus:border-white/20 focus:outline-none resize-y transition-colors"
             )}
           />
 
           <div className="flex justify-end mt-2">
             <span className={cn(
-              "system-ui text-[12px]",
-              charCount >= 280 ? "text-danger" : charCount >= 241 ? "text-warning" : "text-white/25"
+              "font-sans text-[12px]",
+              charCount >= 280 ? "text-danger" : charCount >= 241 ? "text-warning" : "text-muted"
             )}>
-              {charCount} / {limit}
+              {charCount} / {CHAR_LIMIT}
             </span>
           </div>
 
@@ -96,7 +99,7 @@ export default function App() {
             onClick={handleSubmit}
             className={cn(
               "w-full h-12 mt-3 bg-white/[0.06] border border-white/10 rounded-[10px]",
-              "text-white/60 system-ui text-[14px] tracking-[0.08em]",
+              "text-white/60 font-sans text-[14px] tracking-[0.08em]",
               "hover:bg-white/10 hover:text-white/90 transition-all duration-200"
             )}
           >
@@ -105,26 +108,27 @@ export default function App() {
         </section>
 
         {/* Feed */}
-        <section className="mt-14 flex flex-col gap-10">
-          <AnimatePresence initial={false}>
-            {confessions.map((confession) => (
-              <motion.div
-                key={confession.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="group"
-              >
-                <p className="playfair text-[17px] leading-[1.8] text-white/85">
-                  {confession.text}
-                </p>
-                <div className="mt-2 system-ui text-[12px] text-white/25 uppercase tracking-wide">
-                  {formatTimestamp(confession.createdAt)}
-                </div>
-                <div className="mt-6 border-b border-white/[0.06]" />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+        <section className="mt-14">
+          {showSkipLink && confessions.length > 0 && (
+            <a
+              href={`#${confessions[0].id}`}
+              className="block mb-6 font-sans text-[13px] text-white/60 hover:text-white/90 transition-colors"
+              onClick={() => setShowSkipLink(false)}
+            >
+              skip to your confession ↓
+            </a>
+          )}
+          <div aria-live="polite" aria-atomic="false" className="flex flex-col gap-10">
+            <AnimatePresence initial={false}>
+              {confessions.map((confession) => (
+                <ConfessionCard
+                  key={confession.id}
+                  confession={confession}
+                  now={now}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
         </section>
       </main>
     </div>

@@ -10,8 +10,10 @@ export default {
         background: "#0A0A0A",
         surface: "#141414",
         border: "rgba(255,255,255,0.08)",
-        warning: "rgba(255,165,0,0.7)",
+        warning: "#E8952E",
         danger: "#E84545",
+        muted: "#8B8B8B",
+        subtle: "#5C5C5C",
       },
       fontFamily: {
         serif: ["'Playfair Display'", "Georgia", "serif"],
