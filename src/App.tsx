@@ -18,7 +18,7 @@ const SEED_DATA: Confession[] = [
   {
     id: 'seed-1',
     text: "i told her i was busy working, but i just wanted to sit in the car and listen to the rain for an hour. i don't know why i have to lie to be alone.",
-    createdAt: Date.now() - 1000 * 60 * 45, 
+    createdAt: Date.now() - 1000 * 60 * 45,
   },
 ];
 

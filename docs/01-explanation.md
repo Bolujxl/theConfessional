@@ -3,7 +3,7 @@
 Before any code runs, the browser needs a starting point. Think of it like a theatre stage before the actors come out. The stage itself sits there, dark and empty, waiting.
 
 This is the `index.html` file — the stage. It tells the browser three things: what the tab should be called ("The Confessional"), what tiny icon to show next to the tab name, and where to find the code that brings the page to life.
-
+ 
 Look at line 16 — it points to `/src/main.tsx`. That is the first actor stepping onto the stage. Everything starts there.
 
 ```
