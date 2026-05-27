@@ -4,7 +4,9 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { stripHtml } from './lib/stripHtml';
 import { useRelativeTime } from './hooks/useRelativeTime';
+import { useEphemeral } from './hooks/useEphemeral';
 import ConfessionCard from './components/ConfessionCard';
+import LightRays from './components/LightRays';
 import type { Confession } from './types';
 
 function cn(...inputs: ClassValue[]) {
@@ -13,20 +15,14 @@ function cn(...inputs: ClassValue[]) {
 
 const CHAR_LIMIT = 280;
 
-const SEED_DATA: Confession[] = [
-  {
-    id: 'seed-1',
-    text: "i told her i was busy working, but i just wanted to sit in the car and listen to the rain for an hour. i don't know why i have to lie to be alone.",
-    createdAt: Date.now() - 1000 * 60 * 45,
-  },
-];
-
 export default function App() {
-  const [confessions, setConfessions] = useState<Confession[]>(SEED_DATA);
+  const [confessions, setConfessions] = useState<Confession[]>([]);
   const [inputText, setInputText] = useState('');
   const [showSkipLink, setShowSkipLink] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const now = useRelativeTime();
+  const ephemeral = useEphemeral(confessions);
+  const visible = ephemeral.filter((c) => !c.gone);
 
   const charCount = inputText.length;
 
@@ -42,7 +38,7 @@ export default function App() {
       createdAt: Date.now(),
     };
 
-    setConfessions([newConfession, ...confessions]);
+    setConfessions([...confessions, newConfession]);
     setInputText('');
     setShowSkipLink(true);
     textareaRef.current?.focus();
@@ -50,8 +46,27 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center px-6 selection:bg-white/10">
+
+      {/* Background */}
+      <div className="fixed inset-0" style={{ zIndex: 0 }}>
+        <LightRays
+          raysOrigin="top-center"
+          raysColor="#757171"
+          raysSpeed={1}
+          lightSpread={0.5}
+          rayLength={3}
+          followMouse={false}
+          mouseInfluence={0.1}
+          noiseAmount={0}
+          distortion={0}
+          pulsating={false}
+          fadeDistance={1}
+          saturation={1}
+        />
+      </div>
+
       {/* Header */}
-      <header className="mt-12 flex flex-col items-center text-center">
+      <header className="relative mt-12 flex flex-col items-center text-center" style={{ zIndex: 1 }}>
         <img src="/icon.svg" alt="Logo" className="w-9 h-9 opacity-40" />
         <h1 className="mt-4 text-[16px] font-normal tracking-[0.12em] text-white/40 font-serif uppercase">
           The Confessional
@@ -59,7 +74,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="w-full max-w-[640px] mt-16 pb-20">
+      <main className="relative w-full max-w-[640px] mt-16 pb-20" style={{ zIndex: 1 }}>
 
         {/* Form */}
         <section className="flex flex-col">
@@ -88,30 +103,28 @@ export default function App() {
 
           <div className="flex justify-end mt-2">
             <span className={cn(
-              "font-sans text-[12px]",
-              charCount >= 280 ? "text-danger" : charCount >= 241 ? "text-warning" : "text-muted"
+              "font-sans text-[12px] transition-opacity duration-300",
+              charCount >= 280 ? "text-danger" : charCount >= 241 ? "text-warning" : "opacity-0 pointer-events-none"
             )}>
               {charCount} / {CHAR_LIMIT}
             </span>
           </div>
 
-          <button
-            onClick={handleSubmit}
-            className={cn(
-              "w-full h-12 mt-3 bg-white/[0.06] border border-white/10 rounded-[10px]",
-              "text-white/60 font-sans text-[14px] tracking-[0.08em]",
-              "hover:bg-white/10 hover:text-white/90 transition-all duration-200"
-            )}
-          >
-            leave it here
-          </button>
+          <div className="flex justify-end mt-3">
+            <button
+              onClick={handleSubmit}
+              className="font-sans text-[13px] tracking-[0.08em] text-white/35 hover:text-white/70 transition-colors duration-200"
+            >
+              leave it here
+            </button>
+          </div>
         </section>
 
         {/* Feed */}
         <section className="mt-14">
-          {showSkipLink && confessions.length > 0 && (
+          {showSkipLink && visible.length > 0 && (
             <a
-              href={`#${confessions[0].id}`}
+              href={`#${visible[visible.length - 1].id}`}
               className="block mb-6 font-sans text-[13px] text-white/60 hover:text-white/90 transition-colors"
               onClick={() => setShowSkipLink(false)}
             >
@@ -120,11 +133,12 @@ export default function App() {
           )}
           <div aria-live="polite" aria-atomic="false" className="flex flex-col gap-10">
             <AnimatePresence initial={false}>
-              {confessions.map((confession) => (
+              {visible.map((c) => (
                 <ConfessionCard
-                  key={confession.id}
-                  confession={confession}
+                  key={c.id}
+                  confession={c}
                   now={now}
+                  opacity={c.opacity}
                 />
               ))}
             </AnimatePresence>

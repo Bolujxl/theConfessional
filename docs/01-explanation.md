@@ -24,8 +24,6 @@ index.html:1-28
 </html>
 ```
 
-Line 25 creates an empty box with the name `root`. React — the magic that builds everything you see — will fill that box with the whole app. Without that empty box, React has nowhere to build anything.
-
 ---
 
 # Tidying up the room — Modular Architecture
@@ -38,131 +36,110 @@ We "refactored" the app by tidying up. We split the code into different folders:
 - **`src/lib`**: For utility tools like our text cleaner.
 - **`src/types.ts`**: The blueprint that describes what a "Confession" looks like.
 
-This makes the code much easier for humans to read and fix.
-
 ---
 
 # The memory bank — what state is
 
-State is the app's piggy bank. It is how the app remembers things while it runs. This version remembers a few more things than the last one:
+State is the app's piggy bank. It is how the app remembers things while it runs. This version introduces the concept of "ghost" memory:
 
 ```ts
-src/App.tsx:25-29
+src/App.tsx:25-32
 const [confessions, setConfessions] = useState<Confession[]>(SEED_DATA);
 const [inputText, setInputText] = useState('');
-const [showSkipLink, setShowSkipLink] = useState(false);
-const textareaRef = useRef<HTMLTextAreaElement>(null);
-const now = useRelativeTime();
+...
+const ephemeral = useEphemeral(confessions);
+const visible = ephemeral.filter((c) => !c.gone);
 ```
 
-- **`showSkipLink`**: A new memory that remembers if we should show a "teleporter" link to help keyboard users jump straight to their new confession.
-- **`now`**: This isn't just a number; it's a dynamic value from our special `useRelativeTime` hook. It's like a clock that ticks in the background.
+- **`confessions`**: The master list of everything written.
+- **`ephemeral`**: A processed version of that list where each confession has an "opacity" (how visible it is).
+- **`visible`**: The actual list shown on screen. It filters out anyone who has completely faded away.
+
+---
+
+# The Vanishing Ink — `useEphemeral`
+
+This is the most "magical" part of the app. In a real confessional, you speak your words and they vanish into the air. We wanted the app to feel the same way.
+
+```ts
+src/hooks/useEphemeral.ts:23-24
+const opacity = Math.max(0, 1 - (now - c.createdAt) / VISIBLE_MS);
+return { ...c, opacity, gone: opacity === 0 };
+```
+
+Confessions aren't permanent. They are written in "vanishing ink" that lasts for exactly 30 seconds (`VISIBLE_MS`). 
+- As soon as you hit submit, the timer starts.
+- Every second, the confession gets a little more transparent.
+- After 30 seconds, it becomes invisible and "gone."
+
+The only exception? **Statement 1** (the seed confession) is a permanent landmark that never fades.
 
 ---
 
 # The Automatic Timer — `useRelativeTime`
 
-In the old version, if a confession said "just now," it would stay saying "just now" forever unless you refreshed the page. That's a bug!
-
-We built a **Hook** (a reusable special power) to fix this:
+To make the vanishing ink work, the app needs to check the time constantly.
 
 ```ts
 src/hooks/useRelativeTime.ts:6-9
 useEffect(() => {
-  const id = setInterval(() => setNow(Date.now()), 60_000);
+  const id = setInterval(() => setNow(Date.now()), 1_000); // Ticks every second
   return () => clearInterval(id);
 }, []);
 ```
 
-Every 60 seconds (that's the `60_000` milliseconds), this hook "ticks" and updates the time. This forces the app to recount how old each confession is. It's like having a little robot that wakes up once a minute to update all the clocks on your wall.
+This hook "ticks" every second. This forces the app to recount how old each confession is and update its transparency. It's the heartbeat of the app.
 
 ---
 
 # The Cleaning Robot — `stripHtml`
 
-Some people might try to be tricky and type code into the confession box to break the website. This is called an "injection attack."
-
-To stop them, we use a tool called `stripHtml`:
-
-```ts
-src/App.tsx:37-41
-const sanitizedText = stripHtml(trimmedText);
-
-const newConfession: Confession = {
-  ...
-  text: sanitizedText,
-};
-```
-
-Before the confession is saved, it passes through the cleaner. The cleaner takes out any hidden HTML tags (like `<script>` or `<div>`) and leaves only the plain, safe text. It’s like a car wash for your words.
+To keep the app safe, we use a tool called `stripHtml`. It's like a car wash for your words—it scrubs away any hidden code people might try to sneak in.
 
 ---
 
 # Accessibility — Making the app talkable
 
-We made the app better for people who use "Screen Readers" (tools that read the screen out loud for people who can't see it).
-
-1.  **Labels**: We added a `label` to the text box. Even though you can't see it (`sr-only`), a screen reader will find it and say "Write your anonymous confession."
-2.  **Live Regions**: We added `aria-live="polite"` to the feed. This tells the screen reader: "Hey, when a new confession appears, wait for a natural pause and then tell the user."
-3.  **The Skip Link**: When you submit, a link appears that says "skip to your confession." This is a "teleporter" for people using keyboards, letting them jump over the typing box straight to what they just wrote.
+1.  **Labels**: We added a hidden `label` to the text box so screen readers can explain it.
+2.  **Live Regions**: `aria-live="polite"` tells the screen reader to announce new confessions when they appear.
+3.  **The Skip Link**: A "teleporter" for keyboard users. Since new confessions now appear at the **bottom** of the list, the skip link takes you straight to the end of the page.
 
 ---
 
-# Pro Moves — The Keyboard Shortcut
-
-Typing a confession and then having to find your mouse to click "leave it here" can break your flow.
+# Pro Moves — Keyboard Shortcut & Order
 
 ```ts
-src/App.tsx:74-79
-onKeyDown={(e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-    e.preventDefault();
-    handleSubmit();
-  }
-}}
+src/App.tsx:48
+setConfessions([...confessions, newConfession]);
 ```
 
-We added a "Pro Move": If you hold down **Command** (on a Mac) or **Control** (on Windows) and press **Enter**, the app submits your confession automatically. It’s a fast lane for your thoughts.
+- **New Order**: We now add new confessions to the **bottom** of the list (`...confessions` comes first). This makes the feed feel like a continuous scroll of secrets.
+- **Shortcut**: Holding **Cmd/Ctrl + Enter** submits instantly. 
 
 ---
 
 # Performance — The Efficient Painter
-
-React usually likes to redraw everything when something changes. But if you have 100 confessions and you're just typing one new letter, redrawing 100 old cards is a waste of energy!
 
 ```ts
 src/components/ConfessionCard.tsx:11
 const ConfessionCard = memo(function ConfessionCard(...) {
 ```
 
-The word `memo` is short for "memorize." It tells React: "Look at this card. If the confession text inside it hasn't changed, don't bother repainting it. Just use the drawing you made last time." This keeps the app feeling snappy and fast, even if there are hundreds of confessions in the feed.
+The word `memo` tells React to "memorize" the card. If the text hasn't changed, React doesn't waste energy drawing it again. This is vital because the app re-draws every second to handle the fading effect!
 
 ---
 
 # Being Gentle — `useReducedMotion`
 
-Some people get dizzy or feel sick when things slide and fade on a screen.
-
-```ts
-src/components/ConfessionCard.tsx:12-19
-const shouldReduceMotion = useReducedMotion();
-
-return (
-  <motion.div
-    initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 16 }}
-    ...
-```
-
-The app checks the user's computer settings. If they have "Reduce Motion" turned on, we respect that. Instead of sliding from below (`y: 16`), the confession just fades in quietly where it belongs. It’s our way of being a polite and gentle guest in their browser.
+If a user has "Reduce Motion" turned on in their computer settings, the confessions will simply fade in without the sliding movement. We want the experience to be peaceful for everyone.
 
 ---
 
-# Why this matters
+# UI Details — The Disappearing Counter
 
-The code might look more complicated now, but it's actually much stronger.
-- It’s **Modular** (organized).
-- It’s **Accessible** (works for everyone).
-- It’s **Performant** (fast).
-- It’s **Secure** (clean).
+```ts
+src/App.tsx:93-96
+charCount >= 280 ? "text-danger" : charCount >= 241 ? "text-warning" : "opacity-0 pointer-events-none"
+```
 
-Every one of these changes was made to make the app feel more human, more reliable, and more intentional.
+The character counter is shy. It stays completely invisible (`opacity-0`) until you've typed 241 characters. It only appears when you actually need to worry about the 280-character limit. This keeps the screen clean and distraction-free.
