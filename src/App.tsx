@@ -51,7 +51,7 @@ export default function App() {
       <div className="fixed inset-0" style={{ zIndex: 0 }}>
         <LightRays
           raysOrigin="top-center"
-          raysColor="#444444"
+          raysColor="#444444"  // change
           raysSpeed={0.8}
           lightSpread={0.5}
           rayLength={3}
